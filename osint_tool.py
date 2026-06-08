@@ -6,8 +6,10 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 from rich.prompt import Prompt
+from rich.text import Text
+from rich import box
 
-# Pastikan library phonenumbers sudah terinstall: pip install phonenumbers
+# Pastikan library phonenumbers sudah terinstall
 try:
     import phonenumbers
     from phonenumbers import geocoder, carrier
@@ -16,11 +18,33 @@ except ImportError:
 
 console = Console()
 
+def clear_screen():
+    os.system('cls' if os.name == 'nt' else 'clear')
+
+def show_banner():
+    combined_text = Text()
+    
+    # Bagian "OW" (Cyan)
+    combined_text.append(" ██████╗ ██╗    ██╗\n██╔═══██╗██║    ██║\n██║   ██║██║ █╗ ██║\n██║   ██║██║███╗██║\n╚██████╔╝╚███╔███╔╝\n ╚═════╝  ╚══╝╚══╝ ", style="bold cyan")
+    
+    # Bagian "SHI" (Merah)
+    combined_text.append("███████╗██╗  ██╗██╗\n██╔════╝██║  ██║██║\n███████╗███████║██║\n╚════██║██╔══██║██║\n███████║██║  ██║██║\n╚══════╝╚═╝  ╚═╝╚═╝", style="bold red")
+    
+    # Bagian "N" (Cyan)
+    combined_text.append("███╗    ██╗\n████╗  ██║\n██╔██╗ ██║\n██║╚██╗██║\n██║ ╚████║\n╚═╝  ╚═══╝", style="bold cyan")
+    
+    # Bagian "T" (Merah)
+    combined_text.append("████████╗\n╚══██╔══╝\n   ██║   \n   ██║   \n   ██║   \n   ╚═╝   ", style="bold red")
+
+    # Sub-text di bawah ASCII banner
+    combined_text.append("\n\n[+] OWSHINT Framework v2.0 by Cerberuz69 [+]\n", style="bold white")
+    
+    console.print(Panel(combined_text, border_style="blue", box=box.DOUBLE, expand=False, justify="center"))
+
 def track_username():
-    console.print("\n[bold cyan][+][/bold cyan] [bold]Fitur: Lacak Username[/bold]")
+    console.print("\n[bold cyan][+][/bold cyan] [bold white]Fitur: Lacak Username[/bold white]")
     username = Prompt.ask("[bold yellow]Masukkan username target[/bold yellow]")
     
-    # Menambahkan opsi media sosial yang lebih banyak
     sites = {
         "GitHub": f"https://github.com/{username}",
         "Twitter/X": f"https://twitter.com/{username}",
@@ -31,12 +55,12 @@ def track_username():
         "Pinterest": f"https://www.pinterest.com/{username}",
     }
     
-    table = Table(title=f"Hasil Pelacakan Sosmed: {username}")
-    table.add_column("Platform", style="cyan")
-    table.add_column("Status", style="bold")
+    table = Table(title=f"\nHasil Pelacakan Sosmed: {username}", box=box.ROUNDED, border_style="cyan")
+    table.add_column("Platform", style="bold magenta", width=20)
+    table.add_column("Status", style="bold", justify="center", width=15)
     table.add_column("URL", style="green")
 
-    with console.status("[bold green]Sedang mencari...[/bold green]") as status:
+    with console.status("[bold green]Sedang mencari profile...[/bold green]") as status:
         for platform, url in sites.items():
             try:
                 headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
@@ -47,38 +71,43 @@ def track_username():
                 else:
                     table.add_row(platform, "[red]Tidak Ada[/red]", "-")
             except requests.RequestException:
-                table.add_row(platform, "[yellow]Error/Timeout[/yellow]", "-")
+                table.add_row(platform, "[yellow]Timeout/Error[/yellow]", "-")
                 
     console.print(table)
 
 def scan_web():
-    console.print("\n[bold cyan][+][/bold cyan] [bold]Fitur: Scanning Web Subdomain[/bold]")
+    console.print("\n[bold cyan][+][/bold cyan] [bold white]Fitur: Scanning Web Subdomain[/bold white]")
     domain = Prompt.ask("[bold yellow]Masukkan domain target (contoh: google.com)[/bold yellow]")
     
     subdomains = ["www", "mail", "ftp", "admin", "blog", "api", "dev", "test"]
     
-    table = Table(title=f"Subdomain Terdeteksi untuk: {domain}")
-    table.add_column("Subdomain", style="cyan")
-    table.add_column("Status", style="bold green")
+    table = Table(title=f"\nSubdomain Terdeteksi untuk: {domain}", box=box.ROUNDED, border_style="cyan")
+    table.add_column("Subdomain URL", style="bold magenta")
+    table.add_column("Status", style="bold green", justify="center")
     
-    with console.status("[bold green]Memindai subdomain...[/bold green]") as status:
+    has_results = False
+    with console.status("[bold green]Memindai subdomain aktif...[/bold green]") as status:
         for sub in subdomains:
             target_url = f"http://{sub}.{domain}"
             try:
                 response = requests.get(target_url, timeout=3)
                 if response.status_code == 200:
                     table.add_row(f"{sub}.{domain}", f"Aktif (HTTP {response.status_code})")
+                    has_results = True
             except requests.RequestException:
                 pass 
                 
-    console.print(table)
+    if has_results:
+        console.print(table)
+    else:
+        console.print("[bold yellow]\n[!] Tidak ada subdomain umum yang merespon aktif.[/bold yellow]")
 
 def extract_metadata():
-    console.print("\n[bold cyan][+][/bold cyan] [bold]Fitur: Ekstrak Metadata Gambar[/bold]")
+    console.print("\n[bold cyan][+][/bold cyan] [bold white]Fitur: Ekstrak Metadata Gambar[/bold white]")
     img_path = Prompt.ask("[bold yellow]Masukkan path/jalur file gambar (contoh: foto.jpg)[/bold yellow]")
     
     if not os.path.exists(img_path):
-        console.print("[bold red]\[!] File tidak ditemukan![/bold red]")
+        console.print("[bold red][!] File tidak ditemukan![/bold red]")
         return
         
     try:
@@ -86,12 +115,12 @@ def extract_metadata():
         exif_data = image._getexif()
         
         if not exif_data:
-            console.print("[bold yellow]\[!] Gambar tidak memiliki metadata EXIF.[/bold yellow]")
+            console.print("[bold yellow][!] Gambar tidak memiliki metadata EXIF.[/bold yellow]")
             return
             
-        table = Table(title=f"Metadata: {os.path.basename(img_path)}")
-        table.add_column("Tag", style="cyan")
-        table.add_column("Value", style="green")
+        table = Table(title=f"\nMetadata: {os.path.basename(img_path)}", box=box.ROUNDED, border_style="cyan")
+        table.add_column("Tag EXIF", style="bold magenta")
+        table.add_column("Value / Nilai", style="green")
         
         for tag_id, value in exif_data.items():
             tag_name = TAGS.get(tag_id, tag_id)
@@ -100,28 +129,28 @@ def extract_metadata():
             
         console.print(table)
     except Exception as e:
-        console.print(f"[bold red]\[!] Gagal mengekstrak metadata: {e}[/bold red]")
+        console.print(f"[bold red][!] Gagal mengekstrak metadata: {e}[/bold red]")
 
 def track_phone():
-    console.print("\n[bold cyan][+][/bold cyan] [bold]Fitur: Lacak Informasi Nomor Telepon[/bold]")
+    console.print("\n[bold cyan][+][/bold cyan] [bold white]Fitur: Lacak Informasi Nomor Telepon[/bold white]")
     if not phonenumbers:
-        console.print("[bold red]\[!] Library 'phonenumbers' belum terinstall. Jalankan: pip install phonenumbers[/bold red]")
+        console.print("[bold red][!] Library 'phonenumbers' belum terinstall. Jalankan: pip install phonenumbers[/bold red]")
         return
 
-    phone_input = Prompt.ask("[bold yellow]Masukkan nomor telepon target (Format Internasional, contoh: +62812345678)[/bold yellow]")
+    phone_input = Prompt.ask("[bold yellow]Masukkan nomor telepon (contoh: +62812345678)[/bold yellow]")
     
     try:
         parsed_number = phonenumbers.parse(phone_input, None)
         if not phonenumbers.is_valid_number(parsed_number):
-            console.print("[bold red]\[!] Format nomor telepon tidak valid![/bold red]")
+            console.print("[bold red][!] Format nomor telepon tidak valid atau tidak aktif![/bold red]")
             return
             
         negara = geocoder.description_for_number(parsed_number, "id")
         provider = carrier.name_for_number(parsed_number, "id")
         
-        table = Table(title=f"Informasi Nomor: {phone_input}")
-        table.add_column("Kategori", style="cyan")
-        table.add_column("Detail", style="green")
+        table = Table(title=f"\nInformasi Nomor: {phone_input}", box=box.ROUNDED, border_style="cyan")
+        table.add_column("Kategori", style="bold magenta", width=25)
+        table.add_column("Detail Data", style="green")
         
         table.add_row("Negara Asal", negara if negara else "Tidak Diketahui")
         table.add_row("Operator / Carrier", provider if provider else "Tidak Diketahui")
@@ -129,10 +158,10 @@ def track_phone():
         
         console.print(table)
     except Exception as e:
-        console.print(f"[bold red]\[!] Terjadi kesalahan analisis: {e}[/bold red]")
+        console.print(f"[bold red][!] Terjadi kesalahan analisis: {e}[/bold red]")
 
 def track_ip():
-    console.print("\n[bold cyan][+][/bold cyan] [bold]Fitur: Lacak Informasi IP Address[/bold]")
+    console.print("\n[bold cyan][+][/bold cyan] [bold white]Fitur: Lacak Informasi IP Address[/bold white]")
     ip_target = Prompt.ask("[bold yellow]Masukkan IP Address target (contoh: 8.8.8.8)[/bold yellow]")
     
     url = f"http://ip-api.com/json/{ip_target}"
@@ -143,11 +172,11 @@ def track_ip():
             data = response.json()
             
             if data.get("status") == "fail":
-                console.print(f"[bold red]\[!] Gagal: {data.get('message')}[/bold red]")
+                console.print(f"[bold red][!] Gagal: {data.get('message')}[/bold red]")
                 return
                 
-            table = Table(title=f"Geolokasi IP: {ip_target}")
-            table.add_column("Informasi", style="cyan")
+            table = Table(title=f"\nGeolokasi IP: {ip_target}", box=box.ROUNDED, border_style="cyan")
+            table.add_column("Informasi", style="bold magenta", width=25)
             table.add_column("Detail", style="green")
             
             table.add_row("Negara", f"{data.get('country')} ({data.get('countryCode')})")
@@ -159,31 +188,30 @@ def track_ip():
             
             console.print(table)
         except requests.RequestException:
-            console.print("[bold red]\[!] Koneksi timeout atau gagal menghubungi server IP API.[/bold red]")
+            console.print("[bold red][!] Koneksi timeout atau gagal menghubungi server IP API.[/bold red]")
 
 def main():
     while True:
-        os.system('cls' if os.name == 'nt' else 'clear')
+        clear_screen()
+        show_banner()
         
-        banner = """
- ██████╗ ██╗    ██╗███████╗██╗  ██╗██╗███╗    ██╗████████╗
-██╔═══██╗██║    ██║██╔════╝██║  ██║██║████╗  ██║╚══██╔══╝
-██║   ██║██║ █╗ ██║███████╗███████║██║██╔██╗ ██║   ██║   
-██║   ██║██║███╗██║╚════██║██╔══██║██║██║╚██╗██║   ██║   
-╚██████╔╝╚███╔███╔╝███████║██║  ██║██║██║ ╚████║   ██║   
- ╚═════╝  ╚══╝╚══╝ ╚══════╝╚═╝  ╚═╝╚═╝╚═╝  ╚═══╝   ╚═╝   
-             [bold red]OWSHINT Framework by Cerberuz69[/bold red]
-        """
-        console.print(Panel(banner, style="bold blue", expand=False))
+        menu_text = Text()
+        menu_text.append("[1] ", style="bold cyan")
+        menu_text.append("Lacak Username (Sosmed Expanded)\n", style="bold white")
+        menu_text.append("[2] ", style="bold cyan")
+        menu_text.append("Scanning Web Subdomain\n", style="bold white")
+        menu_text.append("[3] ", style="bold cyan")
+        menu_text.append("Ekstrak Metadata Gambar\n", style="bold white")
+        menu_text.append("[4] ", style="bold cyan")
+        menu_text.append("Lacak Nomor Telepon\n", style="bold white")
+        menu_text.append("[5] ", style="bold cyan")
+        menu_text.append("Lacak IP Address\n", style="bold white")
+        menu_text.append("[6] ", style="bold red")
+        menu_text.append("Keluar dari Framework", style="bold red")
+
+        console.print(Panel(menu_text, title="[bold yellow]Daftar Modul OSINT[/bold yellow]", border_style="blue", expand=False))
         
-        console.print("[1] Lacak Username (Sosmed Expanded)")
-        console.print("[2] Scanning Web Subdomain")
-        console.print("[3] Ekstrak Metadata Gambar")
-        console.print("[4] Lacak Nomor Telepon")
-        console.print("[5] Lacak IP Address")
-        console.print("[6] Keluar\n")
-        
-        pilihan = Prompt.ask("[bold white]Pilih menu[/bold white]", choices=["1", "2", "3", "4", "5", "6"])
+        pilihan = Prompt.ask("\n[bold white]Pilih nomor menu[/bold white]", choices=["1", "2", "3", "4", "5", "6"], default="1")
         
         if pilihan == "1":
             track_username()
@@ -196,9 +224,10 @@ def main():
         elif pilihan == "5":
             track_ip()
         elif pilihan == "6":
-            console.print("[bold red]Keluar dari program. Sampai jumpa![/bold red]")
+            console.print("\n[bold red][!] Keluar dari program. Sampai jumpa kembali![/bold red]\n")
             break
             
+        console.print("\n" + "─" * 50, style="dim white")
         input("\nTekan Enter untuk kembali ke menu utama...")
 
 if __name__ == "__main__":
