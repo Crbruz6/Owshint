@@ -7,20 +7,31 @@ from rich.panel import Panel
 from rich.table import Table
 from rich.prompt import Prompt
 
+# Pastikan library phonenumbers sudah terinstall: pip install phonenumbers
+try:
+    import phonenumbers
+    from phonenumbers import geocoder, carrier
+except ImportError:
+    phonenumbers = None
+
 console = Console()
 
 def track_username():
     console.print("\n[bold cyan][+][/bold cyan] [bold]Fitur: Lacak Username[/bold]")
     username = Prompt.ask("[bold yellow]Masukkan username target[/bold yellow]")
     
+    # Menambahkan opsi media sosial yang lebih banyak
     sites = {
         "GitHub": f"https://github.com/{username}",
         "Twitter/X": f"https://twitter.com/{username}",
         "Instagram": f"https://instagram.com/{username}",
-        "TikTok": f"https://www.tiktok.com/@{username}"
+        "TikTok": f"https://www.tiktok.com/@{username}",
+        "Facebook": f"https://www.facebook.com/{username}",
+        "Reddit": f"https://www.reddit.com/user/{username}",
+        "Pinterest": f"https://www.pinterest.com/{username}",
     }
     
-    table = Table(title=f"Hasil Pelacakan: {username}")
+    table = Table(title=f"Hasil Pelacakan Sosmed: {username}")
     table.add_column("Platform", style="cyan")
     table.add_column("Status", style="bold")
     table.add_column("URL", style="green")
@@ -28,7 +39,7 @@ def track_username():
     with console.status("[bold green]Sedang mencari...[/bold green]") as status:
         for platform, url in sites.items():
             try:
-                headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
+                headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
                 response = requests.get(url, headers=headers, timeout=5)
                 
                 if response.status_code == 200:
@@ -91,12 +102,71 @@ def extract_metadata():
     except Exception as e:
         console.print(f"[bold red]\[!] Gagal mengekstrak metadata: {e}[/bold red]")
 
+def track_phone():
+    console.print("\n[bold cyan][+][/bold cyan] [bold]Fitur: Lacak Informasi Nomor Telepon[/bold]")
+    if not phonenumbers:
+        console.print("[bold red]\[!] Library 'phonenumbers' belum terinstall. Jalankan: pip install phonenumbers[/bold red]")
+        return
+
+    phone_input = Prompt.ask("[bold yellow]Masukkan nomor telepon target (Format Internasional, contoh: +62812345678)[/bold yellow]")
+    
+    try:
+        parsed_number = phonenumbers.parse(phone_input, None)
+        if not phonenumbers.is_valid_number(parsed_number):
+            console.print("[bold red]\[!] Format nomor telepon tidak valid![/bold red]")
+            return
+            
+        negara = geocoder.description_for_number(parsed_number, "id")
+        provider = carrier.name_for_number(parsed_number, "id")
+        
+        table = Table(title=f"Informasi Nomor: {phone_input}")
+        table.add_column("Kategori", style="cyan")
+        table.add_column("Detail", style="green")
+        
+        table.add_row("Negara Asal", negara if negara else "Tidak Diketahui")
+        table.add_row("Operator / Carrier", provider if provider else "Tidak Diketahui")
+        table.add_row("Format Internasional", phonenumbers.format_number(parsed_number, phonenumbers.PhoneNumberFormat.INTERNATIONAL))
+        
+        console.print(table)
+    except Exception as e:
+        console.print(f"[bold red]\[!] Terjadi kesalahan analisis: {e}[/bold red]")
+
+def track_ip():
+    console.print("\n[bold cyan][+][/bold cyan] [bold]Fitur: Lacak Informasi IP Address[/bold]")
+    ip_target = Prompt.ask("[bold yellow]Masukkan IP Address target (contoh: 8.8.8.8)[/bold yellow]")
+    
+    url = f"http://ip-api.com/json/{ip_target}"
+    
+    with console.status("[bold green]Mengambil data geolokasi IP...[/bold green]") as status:
+        try:
+            response = requests.get(url, timeout=5)
+            data = response.json()
+            
+            if data.get("status") == "fail":
+                console.print(f"[bold red]\[!] Gagal: {data.get('message')}[/bold red]")
+                return
+                
+            table = Table(title=f"Geolokasi IP: {ip_target}")
+            table.add_column("Informasi", style="cyan")
+            table.add_column("Detail", style="green")
+            
+            table.add_row("Negara", f"{data.get('country')} ({data.get('countryCode')})")
+            table.add_row("Wilayah / Provinsi", data.get('regionName'))
+            table.add_row("Kota", data.get('city'))
+            table.add_row("ISP", data.get('isp'))
+            table.add_row("Organisasi", data.get('org'))
+            table.add_row("Koordinat Lat/Lon", f"{data.get('lat')}, {data.get('lon')}")
+            
+            console.print(table)
+        except requests.RequestException:
+            console.print("[bold red]\[!] Koneksi timeout atau gagal menghubungi server IP API.[/bold red]")
+
 def main():
     while True:
         os.system('cls' if os.name == 'nt' else 'clear')
         
         banner = """
- ██████╗ ██╗    ██╗███████╗██╗  ██╗██╗███╗   ██╗████████╗
+ ██████╗ ██╗    ██╗███████╗██╗  ██╗██╗███╗    ██╗████████╗
 ██╔═══██╗██║    ██║██╔════╝██║  ██║██║████╗  ██║╚══██╔══╝
 ██║   ██║██║ █╗ ██║███████╗███████║██║██╔██╗ ██║   ██║   
 ██║   ██║██║███╗██║╚════██║██╔══██║██║██║╚██╗██║   ██║   
@@ -106,12 +176,14 @@ def main():
         """
         console.print(Panel(banner, style="bold blue", expand=False))
         
-        console.print("[1] Lacak Username")
+        console.print("[1] Lacak Username (Sosmed Expanded)")
         console.print("[2] Scanning Web Subdomain")
         console.print("[3] Ekstrak Metadata Gambar")
-        console.print("[4] Keluar\n")
+        console.print("[4] Lacak Nomor Telepon")
+        console.print("[5] Lacak IP Address")
+        console.print("[6] Keluar\n")
         
-        pilihan = Prompt.ask("[bold white]Pilih menu[/bold white]", choices=["1", "2", "3", "4"])
+        pilihan = Prompt.ask("[bold white]Pilih menu[/bold white]", choices=["1", "2", "3", "4", "5", "6"])
         
         if pilihan == "1":
             track_username()
@@ -120,6 +192,10 @@ def main():
         elif pilihan == "3":
             extract_metadata()
         elif pilihan == "4":
+            track_phone()
+        elif pilihan == "5":
+            track_ip()
+        elif pilihan == "6":
             console.print("[bold red]Keluar dari program. Sampai jumpa![/bold red]")
             break
             
@@ -127,4 +203,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-  
