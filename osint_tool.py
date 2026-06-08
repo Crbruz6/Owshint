@@ -93,12 +93,26 @@ def check_subdomain(sub, domain):
 
 def scan_web():
     console.print("\n[bold cyan][+][/bold cyan] [bold white]Fitur: Advanced Subdomain Scanner (Subfinder Mode)[/bold white]")
-    domain = Prompt.ask("[bold yellow]Masukkan domain target (contoh: google.com)[/bold yellow]")
+    domain_input = Prompt.ask("[bold yellow]Masukkan domain target (contoh: google.com)[/bold yellow]").strip()
     
+    # ─── FITUR AUTO-SANITIZE (PEMBERSIH OTOMATIS URL) ───
+    if domain_input.startswith("https://"):
+        domain_input = domain_input.replace("https://", "")
+    if domain_input.startswith("http://"):
+        domain_input = domain_input.replace("http://", "")
+    
+    domain = domain_input.split('/')[0].strip()
+    
+    if not domain:
+        console.print("[bold red][!] Domain tidak valid![/bold red]")
+        return
+
+    # Wordlist yang diperluas termasuk subdomain instansi pendidikan (.sch.id / .ac.id)
     subdomains = [
         "www", "mail", "ftp", "admin", "blog", "api", "dev", "test", "staging",
         "server", "vps", "secure", "webmail", "shop", "cpanel", "whm", "autodiscover",
-        "vpn", "monitor", "ns1", "ns2", "db", "mysql", "demo", "cloud", "app", "portal"
+        "vpn", "monitor", "ns1", "ns2", "db", "mysql", "demo", "cloud", "app", "portal",
+        "ppdb", "elearning", "moodle", "sia", "siakad", "jurnal", "absensi", "nilai", "pas"
     ]
     
     table = Table(title=f"\n[bold magenta]Subdomain Terdeteksi untuk: {domain}[/bold magenta]", box=box.ROUNDED, border_style="cyan")
@@ -133,7 +147,7 @@ def scan_web():
         console.print(table)
         console.print(f"\n[bold green][┬─┬][/bold green] Total ditemukan: [bold white]{len(found_subdomains)}[/bold white] subdomain aktif.")
     else:
-        console.print("[bold red]\n[!] Tidak ada subdomain yang merespon aktif dari wordlist saat ini.[/bold red]")
+        console.print(f"[bold yellow]\n[!] Scan selesai. Tidak ada subdomain dari wordlist yang aktif di {domain}.[/bold yellow]")
 
 def extract_metadata():
     console.print("\n[bold cyan][+][/bold cyan] [bold white]Fitur: Ekstrak Metadata Gambar[/bold white]")
