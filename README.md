@@ -39,4 +39,4 @@ Langkah pertama, kloning repositori ini ke komputer lokal kamu dan masuk ke dire
 ```bash
 git clone https://github.com/Crbruz6/Owshint
 cd Owshint
-python tool_osint.py
+python3 osint_tool.py
