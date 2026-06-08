@@ -2,12 +2,16 @@ import os
 import requests
 from PIL import Image
 from PIL.ExifTags import TAGS
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
+# Rich UI Library Components
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 from rich.prompt import Prompt
 from rich.text import Text
 from rich import box
+from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskProgressColumn
 
 # Pastikan library phonenumbers sudah terinstall
 try:
@@ -75,32 +79,61 @@ def track_username():
                 
     console.print(table)
 
+def check_subdomain(sub, domain):
+    """Fungsi pekerja untuk mengecek satu subdomain"""
+    target_url = f"http://{sub}.{domain}"
+    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
+    try:
+        response = requests.head(target_url, headers=headers, timeout=3, allow_redirects=True)
+        if response.status_code < 400:
+            return f"{sub}.{domain}", f"[bold green]Aktif (HTTP {response.status_code})[/bold green]"
+    except requests.RequestException:
+        pass
+    return None
+
 def scan_web():
-    console.print("\n[bold cyan][+][/bold cyan] [bold white]Fitur: Scanning Web Subdomain[/bold white]")
+    console.print("\n[bold cyan][+][/bold cyan] [bold white]Fitur: Advanced Subdomain Scanner (Subfinder Mode)[/bold white]")
     domain = Prompt.ask("[bold yellow]Masukkan domain target (contoh: google.com)[/bold yellow]")
     
-    subdomains = ["www", "mail", "ftp", "admin", "blog", "api", "dev", "test"]
+    subdomains = [
+        "www", "mail", "ftp", "admin", "blog", "api", "dev", "test", "staging",
+        "server", "vps", "secure", "webmail", "shop", "cpanel", "whm", "autodiscover",
+        "vpn", "monitor", "ns1", "ns2", "db", "mysql", "demo", "cloud", "app", "portal"
+    ]
     
-    table = Table(title=f"\nSubdomain Terdeteksi untuk: {domain}", box=box.ROUNDED, border_style="cyan")
-    table.add_column("Subdomain URL", style="bold magenta")
-    table.add_column("Status", style="bold green", justify="center")
+    table = Table(title=f"\n[bold magenta]Subdomain Terdeteksi untuk: {domain}[/bold magenta]", box=box.ROUNDED, border_style="cyan")
+    table.add_column("Subdomain URL", style="bold cyan", width=35)
+    table.add_column("Status / Respon", justify="center", width=20)
     
-    has_results = False
-    with console.status("[bold green]Memindai subdomain aktif...[/bold green]") as status:
-        for sub in subdomains:
-            target_url = f"http://{sub}.{domain}"
-            try:
-                response = requests.get(target_url, timeout=3)
-                if response.status_code == 200:
-                    table.add_row(f"{sub}.{domain}", f"Aktif (HTTP {response.status_code})")
-                    has_results = True
-            except requests.RequestException:
-                pass 
+    found_subdomains = []
+    
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        BarColumn(bar_width=40, style="black", complete_style="cyan"),
+        TaskProgressColumn(),
+        console=console
+    ) as progress:
+        
+        task = progress.add_task("[yellow]Scanning...", total=len(subdomains))
+        
+        with ThreadPoolExecutor(max_workers=10) as executor:
+            futures = {executor.submit(check_subdomain, sub, domain): sub for sub in subdomains}
+            
+            for future in as_completed(futures):
+                result = future.result()
+                if result:
+                    sub_url, status = result
+                    table.add_row(sub_url, status)
+                    found_subdomains.append(sub_url)
                 
-    if has_results:
+                progress.advance(task)
+
+    if found_subdomains:
         console.print(table)
+        console.print(f"\n[bold green][┬─┬][/bold green] Total ditemukan: [bold white]{len(found_subdomains)}[/bold white] subdomain aktif.")
     else:
-        console.print("[bold yellow]\n[!] Tidak ada subdomain umum yang merespon aktif.[/bold yellow]")
+        console.print("[bold red]\n[!] Tidak ada subdomain yang merespon aktif dari wordlist saat ini.[/bold red]")
 
 def extract_metadata():
     console.print("\n[bold cyan][+][/bold cyan] [bold white]Fitur: Ekstrak Metadata Gambar[/bold white]")
