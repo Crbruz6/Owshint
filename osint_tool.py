@@ -5,22 +5,41 @@ from PIL.ExifTags import TAGS
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # Rich UI Library Components
-from rich.console import Console
-from rich.panel import Panel
-from rich.table import Table
-from rich.prompt import Prompt
-from rich.text import Text
-from rich import box
-from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskProgressColumn
+try:
+    from rich.console import Console
+    from rich.panel import Panel
+    from rich.table import Table
+    from rich.prompt import Prompt
+    from rich.text import Text
+    from rich import box
+except ImportError:
+    print("[!] Library 'rich' belum terinstal. Menginstal otomatis...")
+    os.system('pip install rich')
+    from rich.console import Console
+    from rich.panel import Panel
+    from rich.table import Table
+    from rich.prompt import Prompt
+    from rich import box
 
-# Pastikan library phonenumbers sudah terinstall
+# Pastikan library phonenumbers dan pillow terinstall
 try:
     import phonenumbers
     from phonenumbers import geocoder, carrier
 except ImportError:
-    phonenumbers = None
+    print("[!] Library 'phonenumbers' belum terinstal. Menginstal otomatis...")
+    os.system('pip install phonenumbers')
+    import phonenumbers
+    from phonenumbers import geocoder, carrier
+
+try:
+    from PIL import Image
+except ImportError:
+    print("[!] Library 'Pillow' belum terinstal. Menginstal otomatis...")
+    os.system('pip install Pillow')
+    from PIL import Image
 
 console = Console()
+session = requests.Session() # Global session untuk optimasi performa requests
 
 def clear_screen():
     os.system('cls' if os.name == 'nt' else 'clear')
@@ -64,11 +83,11 @@ def track_username():
     table.add_column("Status", style="bold", justify="center", width=15)
     table.add_column("URL", style="green")
 
-    with console.status("[bold green]Sedang mencari profile...[/bold green]") as status:
+    with console.status("[bold green]Sedang mencari profile...[/bold green]"):
         for platform, url in sites.items():
             try:
                 headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
-                response = requests.get(url, headers=headers, timeout=5)
+                response = session.get(url, headers=headers, timeout=5)
                 
                 if response.status_code == 200:
                     table.add_row(platform, "[green]Ditemukan[/green]", url)
@@ -80,43 +99,54 @@ def track_username():
     console.print(table)
 
 def check_subdomain(sub, domain):
-    """Fungsi pekerja untuk mengecek satu subdomain"""
-    target_url = f"http://{sub}.{domain}"
-    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
-    try:
-        response = requests.head(target_url, headers=headers, timeout=3, allow_redirects=True)
-        if response.status_code < 400:
-            return f"{sub}.{domain}", f"[bold green]Aktif (HTTP {response.status_code})[/bold green]"
-    except requests.RequestException:
-        pass
-    return None
-
-def check_subdomain(sub, domain):
     urls = [
         f"https://{sub}.{domain}",
         f"http://{sub}.{domain}"
     ]
-
-    headers = {'User-Agent': 'Mozilla/5.0'}
+    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
 
     for target_url in urls:
         try:
             response = session.head(
                 target_url,
                 headers=headers,
-                timeout=1.5,
+                timeout=2.0,
                 allow_redirects=True
             )
-
             if response.status_code < 400:
-                return (
-                    f"{sub}.{domain}",
-                    f"[bold green]Aktif ({response.status_code})[/bold green]"
-                )
+                return f"{sub}.{domain}", f"[bold green]Aktif ({response.status_code})[/bold green]"
         except:
             pass
-
     return None
+
+def scan_web():
+    console.print("\n[bold cyan][+][/bold cyan] [bold white]Fitur: Scanning Web Subdomain[/bold white]")
+    domain = Prompt.ask("[bold yellow]Masukkan domain target (contoh: google.com)[/bold yellow]")
+    
+    # Common subdomains list untuk keperluan testing/recon umum
+    common_subs = [
+        "www", "mail", "ftp", "admin", "blog", "cpanel", "webmail", "ns1", "ns2",
+        "api", "dev", "staging", "shop", "login", "secure", "test", "support"
+    ]
+    
+    table = Table(title=f"\nHasil Scan Subdomain: {domain}", box=box.ROUNDED, border_style="cyan")
+    table.add_column("Subdomain", style="bold magenta")
+    table.add_column("Status", justify="center")
+
+    results_found = False
+    with console.status("[bold green]Sedang memindai subdomain (Multi-threading)...[/bold green]"):
+        with ThreadPoolExecutor(max_workers=10) as executor:
+            futures = [executor.submit(check_subdomain, sub, domain) for sub in common_subs]
+            for future in as_completed(futures):
+                result = future.result()
+                if result:
+                    table.add_row(result[0], result[1])
+                    results_found = True
+                    
+    if results_found:
+        console.print(table)
+    else:
+        console.print("[bold yellow][!] Tidak ada subdomain umum aktif yang terdeteksi.[/bold yellow]")
 
 def extract_metadata():
     console.print("\n[bold cyan][+][/bold cyan] [bold white]Fitur: Ekstrak Metadata Gambar[/bold white]")
@@ -149,10 +179,6 @@ def extract_metadata():
 
 def track_phone():
     console.print("\n[bold cyan][+][/bold cyan] [bold white]Fitur: Lacak Informasi Nomor Telepon[/bold white]")
-    if not phonenumbers:
-        console.print("[bold red][!] Library 'phonenumbers' belum terinstall. Jalankan: pip install phonenumbers[/bold red]")
-        return
-
     phone_input = Prompt.ask("[bold yellow]Masukkan nomor telepon (contoh: +62812345678)[/bold yellow]")
     
     try:
@@ -182,9 +208,9 @@ def track_ip():
     
     url = f"http://ip-api.com/json/{ip_target}"
     
-    with console.status("[bold green]Mengambil data geolokasi IP...[/bold green]") as status:
+    with console.status("[bold green]Mengambil data geolokasi IP...[/bold green]"):
         try:
-            response = requests.get(url, timeout=5)
+            response = session.get(url, timeout=5)
             data = response.json()
             
             if data.get("status") == "fail":
@@ -196,10 +222,10 @@ def track_ip():
             table.add_column("Detail", style="green")
             
             table.add_row("Negara", f"{data.get('country')} ({data.get('countryCode')})")
-            table.add_row("Wilayah / Provinsi", data.get('regionName'))
-            table.add_row("Kota", data.get('city'))
-            table.add_row("ISP", data.get('isp'))
-            table.add_row("Organisasi", data.get('org'))
+            table.add_row("Wilayah / Provinsi", str(data.get('regionName')))
+            table.add_row("Kota", str(data.get('city')))
+            table.add_row("ISP", str(data.get('isp')))
+            table.add_row("Organisasi", str(data.get('org')))
             table.add_row("Koordinat Lat/Lon", f"{data.get('lat')}, {data.get('lon')}")
             
             console.print(table)
