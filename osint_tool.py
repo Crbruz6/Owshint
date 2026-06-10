@@ -91,63 +91,32 @@ def check_subdomain(sub, domain):
         pass
     return None
 
-def scan_web():
-    console.print("\n[bold cyan][+][/bold cyan] [bold white]Fitur: Advanced Subdomain Scanner (Subfinder Mode)[/bold white]")
-    domain_input = Prompt.ask("[bold yellow]Masukkan domain target (contoh: google.com)[/bold yellow]").strip()
-    
-    # ─── FITUR AUTO-SANITIZE (PEMBERSIH OTOMATIS URL) ───
-    if domain_input.startswith("https://"):
-        domain_input = domain_input.replace("https://", "")
-    if domain_input.startswith("http://"):
-        domain_input = domain_input.replace("http://", "")
-    
-    domain = domain_input.split('/')[0].strip()
-    
-    if not domain:
-        console.print("[bold red][!] Domain tidak valid![/bold red]")
-        return
-
-    # Wordlist yang diperluas termasuk subdomain instansi pendidikan (.sch.id / .ac.id)
-    subdomains = [
-        "www", "mail", "ftp", "admin", "blog", "api", "dev", "test", "staging",
-        "server", "vps", "secure", "webmail", "shop", "cpanel", "whm", "autodiscover",
-        "vpn", "monitor", "ns1", "ns2", "db", "mysql", "demo", "cloud", "app", "portal",
-        "ppdb", "elearning", "moodle", "sia", "siakad", "jurnal", "absensi", "nilai", "pas"
+def check_subdomain(sub, domain):
+    urls = [
+        f"https://{sub}.{domain}",
+        f"http://{sub}.{domain}"
     ]
-    
-    table = Table(title=f"\n[bold magenta]Subdomain Terdeteksi untuk: {domain}[/bold magenta]", box=box.ROUNDED, border_style="cyan")
-    table.add_column("Subdomain URL", style="bold cyan", width=35)
-    table.add_column("Status / Respon", justify="center", width=20)
-    
-    found_subdomains = []
-    
-    with Progress(
-        SpinnerColumn(),
-        TextColumn("[progress.description]{task.description}"),
-        BarColumn(bar_width=40, style="black", complete_style="cyan"),
-        TaskProgressColumn(),
-        console=console
-    ) as progress:
-        
-        task = progress.add_task("[yellow]Scanning...", total=len(subdomains))
-        
-        with ThreadPoolExecutor(max_workers=10) as executor:
-            futures = {executor.submit(check_subdomain, sub, domain): sub for sub in subdomains}
-            
-            for future in as_completed(futures):
-                result = future.result()
-                if result:
-                    sub_url, status = result
-                    table.add_row(sub_url, status)
-                    found_subdomains.append(sub_url)
-                
-                progress.advance(task)
 
-    if found_subdomains:
-        console.print(table)
-        console.print(f"\n[bold green][┬─┬][/bold green] Total ditemukan: [bold white]{len(found_subdomains)}[/bold white] subdomain aktif.")
-    else:
-        console.print(f"[bold yellow]\n[!] Scan selesai. Tidak ada subdomain dari wordlist yang aktif di {domain}.[/bold yellow]")
+    headers = {'User-Agent': 'Mozilla/5.0'}
+
+    for target_url in urls:
+        try:
+            response = session.head(
+                target_url,
+                headers=headers,
+                timeout=1.5,
+                allow_redirects=True
+            )
+
+            if response.status_code < 400:
+                return (
+                    f"{sub}.{domain}",
+                    f"[bold green]Aktif ({response.status_code})[/bold green]"
+                )
+        except:
+            pass
+
+    return None
 
 def extract_metadata():
     console.print("\n[bold cyan][+][/bold cyan] [bold white]Fitur: Ekstrak Metadata Gambar[/bold white]")
