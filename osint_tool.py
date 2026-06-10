@@ -45,7 +45,8 @@ def clear_screen():
     os.system('cls' if os.name == 'nt' else 'clear')
 
 def show_banner():
-    combined_text = Text()
+    # justify="center" dipasang di sini agar text ASCII rata tengah dengan benar
+    combined_text = Text(justify="center")
     
     # Bagian "OW" (Cyan)
     combined_text.append(" ██████╗ ██╗    ██╗\n██╔═══██╗██║    ██║\n██║   ██║██║ █╗ ██║\n██║   ██║██║███╗██║\n╚██████╔╝╚███╔███╔╝\n ╚═════╝  ╚══╝╚══╝ ", style="bold cyan")
@@ -62,7 +63,7 @@ def show_banner():
     # Sub-text di bawah ASCII banner
     combined_text.append("\n\n[+] OWSHINT Framework v2.0 by Cerberuz69 [+]\n", style="bold white")
     
-    console.print(Panel(combined_text, border_style="blue", box=box.DOUBLE, expand=False, justify="center"))
+    console.print(Panel(combined_text, border_style="blue", box=box.DOUBLE, expand=False))
 
 def track_username():
     console.print("\n[bold cyan][+][/bold cyan] [bold white]Fitur: Lacak Username[/bold white]")
